@@ -1,0 +1,2 @@
+CREATE (:Programming {language: "Java"})<-[:WRITES_CODE {experience: "confirmed"}]-(n0:Person {name: "Mathias", age: 22})-[:RELATED_TO {type: "family"}]->(:Person {name: "Mael", age: 20})-[:EATS]->(n4:Food {sugar: "high", name: "snickers"}),
+(n4)<-[:EATS]-(n0)-[:WRITES_CODE {experience: "novice"}]->(:Programming {language: "Rust"})

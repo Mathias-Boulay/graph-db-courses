@@ -1,0 +1,249 @@
+{
+    "items": [
+        {
+            "tags": [
+                "neo4j",
+                "cypher",
+                "theory",
+                "knowledge-graph"
+            ],
+            "answers": [
+                {
+                    "owner": {
+                        "reputation": 67064,
+                        "user_id": 974731,
+                        "user_type": "registered",
+                        "profile_image": "https://www.gravatar.com/avatar/8f54ba41697411b238379022f9a6df56?s=256&d=identicon&r=PG",
+                        "display_name": "cybersam",
+                        "link": "https://stackoverflow.com/users/974731/cybersam"
+                    },
+                    "last_editor": {
+                        "reputation": 67064,
+                        "user_id": 974731,
+                        "user_type": "registered",
+                        "profile_image": "https://www.gravatar.com/avatar/8f54ba41697411b238379022f9a6df56?s=256&d=identicon&r=PG",
+                        "display_name": "cybersam",
+                        "link": "https://stackoverflow.com/users/974731/cybersam"
+                    },
+                    "comment_count": 0,
+                    "down_vote_count": 0,
+                    "up_vote_count": 1,
+                    "is_accepted": false,
+                    "score": 1,
+                    "last_activity_date": 1742406024,
+                    "last_edit_date": 1742406024,
+                    "creation_date": 1742405181,
+                    "answer_id": 79520951,
+                    "question_id": 79520062,
+                    "share_link": "https://stackoverflow.com/a/79520951",
+                    "body_markdown": "Neo4j will [filter out any MATCH result row that repeats the same relationship](https://neo4j.com/docs/cypher-manual/current/patterns/reference/#graph-patterns-rules-relationship-uniqueness). That is why **(1)** did not do what you expected.\r\n\r\nAssuming that:\r\n\r\n- `N_11` is the number of `(:User {id: &quot;1&quot;})-[:RATED]-&gt;(:Movie)` paths, and\r\n- `User` node `id` properties have string values (to allow my query to use them as map keys),\r\n\r\nthis query may do what you want:\r\n\r\n```\r\nMATCH (u1:User)-[:RATED]-&gt;(:Movie)&lt;-[:RATED]-(u2:User)\r\nWITH u1, u2, COUNT(*) as ct\r\nWITH\r\n  COLLECT(DISTINCT u1) as u1s,\r\n  COLLECT(DISTINCT u2) AS u2s,\r\n  COLLECT({headUser: u1.id, tailUser: u2.id, ct: ct}) AS pairs\r\nUNWIND apoc.coll.intersection(u1s, u2s) AS user\r\nWITH user, COUNT { (user)-[:RATED]-&gt;(:Movie) } AS userCt, pairs\r\nWITH COLLECT(user.id) AS userIds, COLLECT(userCt) AS userCts, pairs\r\nWITH apoc.map.fromLists(userIds, userCts) AS userCtMap, pairs\r\nUNWIND pairs as pair\r\nRETURN\r\n  pair.headUser AS headUser,\r\n  pair.tailUser AS tailUser,\r\n  (2.0 * pair.ct)/(userCtMap[pair.headUser] + userCtMap[pair.tailUser]) AS pathSim\r\n```\r\n\r\nThis query calculates all distinct users found by the `MATCH` clause and maps each user&#39;s `id` to its number of outgoing `-[:RATED]-&gt;(:Movie)` relationships. It then uses that mapping to calculate the denominator of your pathSim formula.",
+                    "link": "https://stackoverflow.com/questions/79520062/neo4j-count-of-symmetric-meta-path-include-half-meta-paths/79520951#79520951",
+                    "title": "Neo4j - Count of symmetric meta-path - Include half meta-paths"
+                }
+            ],
+            "owner": {
+                "reputation": 1,
+                "user_id": 29990490,
+                "user_type": "registered",
+                "profile_image": "https://www.gravatar.com/avatar/aaa17fd77ab102e0ac193581bfd8b09f?s=256&d=identicon&r=PG&f=y&so-version=2",
+                "display_name": "Emanuele Maduli",
+                "link": "https://stackoverflow.com/users/29990490/emanuele-maduli"
+            },
+            "last_editor": {
+                "reputation": 1,
+                "user_id": 29990490,
+                "user_type": "registered",
+                "profile_image": "https://www.gravatar.com/avatar/aaa17fd77ab102e0ac193581bfd8b09f?s=256&d=identicon&r=PG&f=y&so-version=2",
+                "display_name": "Emanuele Maduli",
+                "link": "https://stackoverflow.com/users/29990490/emanuele-maduli"
+            },
+            "comment_count": 0,
+            "delete_vote_count": 0,
+            "close_vote_count": 0,
+            "is_answered": true,
+            "view_count": 26,
+            "favorite_count": 0,
+            "down_vote_count": 0,
+            "up_vote_count": 0,
+            "answer_count": 1,
+            "score": 0,
+            "last_activity_date": 1742406024,
+            "creation_date": 1742383686,
+            "last_edit_date": 1742384700,
+            "question_id": 79520062,
+            "share_link": "https://stackoverflow.com/q/79520062",
+            "body_markdown": "I have constructed a Neo4j graph based on MovieLens100k with the following content:\r\n\r\n 1. Nodes: `(:User)`, `(:Movie)`, `(:Genre)`\r\n\r\n 2. Relations: `(:User)-[:RATED]-&gt;(:Movie)`, `(:Movie)-[:HAS_GENRE]-&gt;(:Genre)`\r\n\r\nI want to compute PathSim, which is a similarity measure for equal-type nodes following a meta-path which links the two entities. Suppose the entities are `(:User)` and that the meta-path to follow is the following: \r\n\r\n    path1=(:User)-[:RATED]-&gt;(:Movie)&lt;-[:RATED]-(:User)\r\n\r\nSuppose to have computed such quantities:\r\n\r\nN_ij = Number of path of type path1 starting from `(:User)` with id=i and ending in `(:User)` with id=j\r\n\r\nThen PathSim for user with id 1 and id 2 is:\r\n\r\n    PathSim = 2N_12/(N_11+N_22)\r\n\r\nTo compute such quantity in Neo4j my Cypher query **(1)** is:\r\n\r\n    &quot;&quot;&quot;\r\n    MATCH path=(u1:User)-[:RATED]-&gt;(:Movie)&lt;-[:RATED]-(u2:User)\r\n    WITH u1, u2, COUNT(path) as ct\r\n    RETURN u1.id as HeadUser, u2.id as TailUser, CASE WHEN ct is null THEN 0 ELSE ct END AS Overlap\r\n    &quot;&quot;&quot;\r\n\r\nLet us focus on users 1 and 2, this correctly computes all different paths between user 1 and 2, but it does not compute all different paths between user 1 and 1. In fact, since the meta-path is symmetric, N_11 should be equal to counting the half-paths `(u1:User)-[:RATED]-&gt;(:Movie)` starting from `(:User)` with id=1, *i.e.* query **(2)**:\r\n\r\n    &quot;&quot;&quot;\r\n    MATCH path=(u1:User {id: 1})-[:RATED]-&gt;(:Movie)\r\n    WITH COUNT(path) as ct\r\n    RETURN CASE WHEN ct is null THEN 0 ELSE ct END AS Overlap\r\n    &quot;&quot;&quot;\r\n\r\nBy taking into account &quot;trivial&quot; paths consisting of going from `(:User)` to `(:Movie)` and coming back from the same exact half-path.\r\n\r\nHowever, as I understand, there is no such row in query **(1)** since Cypher only counts different half-paths given a symmetric path. \r\n\r\nIs there a way to account for &quot;trivial&quot; paths by sort of modifying query **(1)**?\r\n  ",
+            "link": "https://stackoverflow.com/questions/79520062/neo4j-count-of-symmetric-meta-path-include-half-meta-paths",
+            "title": "Neo4j - Count of symmetric meta-path - Include half meta-paths"
+        },
+        {
+            "tags": [
+                "neo4j",
+                "backup",
+                "dump",
+                "neo4j-admin"
+            ],
+            "owner": {
+                "reputation": 131,
+                "user_id": 15354138,
+                "user_type": "registered",
+                "profile_image": "https://i.sstatic.net/SMud3.jpg?s=256",
+                "display_name": "sdm4n",
+                "link": "https://stackoverflow.com/users/15354138/sdm4n"
+            },
+            "comment_count": 0,
+            "delete_vote_count": 0,
+            "close_vote_count": 0,
+            "is_answered": false,
+            "view_count": 9,
+            "favorite_count": 0,
+            "down_vote_count": 0,
+            "up_vote_count": 0,
+            "answer_count": 0,
+            "score": 0,
+            "last_activity_date": 1742312173,
+            "creation_date": 1742312173,
+            "question_id": 79517984,
+            "share_link": "https://stackoverflow.com/q/79517984",
+            "body_markdown": "I create daily dumps in a K8s cluster using `helm` with `neo4j/neo4j` version `5.21.0` and `neo4j-admin database dump` command. Then I wanted to load the dumps into a local volume using `neo4j-admin` version `5.21.2` (same with version `2025.02.0`), which brings up the following error:\r\n\r\n```\r\nCaused by: org.neo4j.cli.CommandFailedException: Not a valid Neo4j archive: /backups/neo4j.dump\r\nCaused by: com.github.luben.zstd.ZstdIOException: Unknown frame descriptor\r\n```\r\n\r\nSame for running `neo4j-admin database check` on the dump file.\r\n\r\n### Actual behavior\r\n\r\nThe dumps worked fine for several months using the exact same toolchain, but now do not work for a couple of days anymore. So sometimes they work and sometimes not. The dump file size is about 1 GiB and the &quot;uncompressed&quot; size according to `neo4j-admin database load --info` is about 5 GiB. It seems that the `dump` command creates invalid archives or that the `load` command thinks they are invalid.\r\n\r\n### Expected behavior\r\n\r\nThe database dump files can be processed with `neo4j-admin database load` and `neo4j database check` properly.\r\n\r\n### Question\r\n\r\nCan the dump files be inspected with another tool to check their validity? Since Zstd is used, I tried to extract them with another zstd tooling, but it complains about that it is not a valid archive, even for the dump files checked valid with the `neo4j-admin` tooling.\r\n\r\n### Logs\r\n\r\nLog of `neo4j-admin database load` with stacktrace:\r\n\r\n```\r\nDone: 124 files, 4.858GiB processed.\r\nFailed to load database &#39;neo4j&#39;: Not a valid Neo4j archive: /backups/neo4j.dump\r\nLoad failed for databases: &#39;neo4j&#39;\r\norg.neo4j.cli.CommandFailedException: Load failed for databases: &#39;neo4j&#39;\r\n        at org.neo4j.commandline.dbms.LoadCommand.checkFailure(LoadCommand.java:300)\r\n        at org.neo4j.commandline.dbms.LoadCommand.loadDump(LoadCommand.java:283)\r\n        at org.neo4j.commandline.dbms.LoadCommand.loadDump(LoadCommand.java:241)\r\n        at org.neo4j.commandline.dbms.LoadCommand.execute(LoadCommand.java:169)\r\n        at org.neo4j.cli.AbstractCommand.call(AbstractCommand.java:92)\r\n        at org.neo4j.cli.AbstractCommand.call(AbstractCommand.java:37)\r\n        at picocli.CommandLine.executeUserObject(CommandLine.java:2041)\r\n        at picocli.CommandLine.access$1500(CommandLine.java:148)\r\n        at picocli.CommandLine$RunLast.executeUserObjectOfLastSubcommandWithSameParent(CommandLine.java:2461)\r\n        at picocli.CommandLine$RunLast.handle(CommandLine.java:2453)\r\n        at picocli.CommandLine$RunLast.handle(CommandLine.java:2415)\r\n        at picocli.CommandLine$AbstractParseResultHandler.execute(CommandLine.java:2273)\r\n        at picocli.CommandLine$RunLast.execute(CommandLine.java:2417)\r\n        at picocli.CommandLine.execute(CommandLine.java:2170)\r\n        at org.neo4j.cli.AdminTool.execute(AdminTool.java:94)\r\n        at org.neo4j.cli.AdminTool.main(AdminTool.java:82)\r\nCaused by: org.neo4j.cli.CommandFailedException: Not a valid Neo4j archive: /backups/neo4j.dump\r\n        at org.neo4j.commandline.dbms.LoadDumpExecutor.load(LoadDumpExecutor.java:119)\r\n        at org.neo4j.commandline.dbms.LoadDumpExecutor.execute(LoadDumpExecutor.java:80)\r\n        at org.neo4j.commandline.dbms.LoadCommand.loadDump(LoadCommand.java:274)\r\n        ... 14 more\r\nCaused by: org.neo4j.dbms.archive.IncorrectFormat: /backups/neo4j.dump\r\n        at org.neo4j.dbms.archive.Loader.nextEntry(Loader.java:190)\r\n        at org.neo4j.dbms.archive.Loader.load(Loader.java:120)\r\n        at org.neo4j.commandline.dbms.LoadDumpExecutor.load(LoadDumpExecutor.java:103)\r\n        ... 16 more\r\nCaused by: com.github.luben.zstd.ZstdIOException: Unknown frame descriptor\r\n        at com.github.luben.zstd.ZstdInputStreamNoFinalizer.readInternal(ZstdInputStreamNoFinalizer.java:184)\r\n        at com.github.luben.zstd.ZstdInputStreamNoFinalizer.read(ZstdInputStreamNoFinalizer.java:136)\r\n        at org.apache.commons.io.IOUtils.skip(IOUtils.java:2414)\r\n        at org.apache.commons.compress.utils.IOUtils.skip(IOUtils.java:282)\r\n        at org.apache.commons.compress.archivers.tar.TarArchiveInputStream.consumeRemainderOfLastBlock(TarArchiveInputStream.java:317)\r\n        at org.apache.commons.compress.archivers.tar.TarArchiveInputStream.getRecord(TarArchiveInputStream.java:501)\r\n        at org.apache.commons.compress.archivers.tar.TarArchiveInputStream.getNextTarEntry(TarArchiveInputStream.java:415)\r\n        at org.apache.commons.compress.archivers.tar.TarArchiveInputStream.getNextEntry(TarArchiveInputStream.java:389)\r\n        at org.apache.commons.compress.archivers.tar.TarArchiveInputStream.getNextEntry(TarArchiveInputStream.java:49)\r\n        at org.neo4j.dbms.archive.Loader.nextEntry(Loader.java:188)\r\n        ... 18 more\r\n```\r\n\r\nLog of `neo4j-admin database dump`:\r\n\r\n```\r\nDone: 124 files, 4.858GiB processed.\r\n2025-03-10 01:03:30.303+0000 INFO  [o.n.c.d.DumpCommand] Dump completed successfully\r\n```",
+            "link": "https://stackoverflow.com/questions/79517984/unknown-frame-descriptor-when-loading-a-neo4j-dump-with-neo4j-admin-load",
+            "title": "Unknown frame descriptor when loading a Neo4j dump with neo4j-admin load"
+        },
+        {
+            "tags": [
+                "neo4j",
+                "cypher"
+            ],
+            "answers": [
+                {
+                    "owner": {
+                        "reputation": 1461,
+                        "user_id": 2258090,
+                        "user_type": "registered",
+                        "profile_image": "https://i.sstatic.net/g8J8h.jpg?s=256",
+                        "display_name": "Finbar Good",
+                        "link": "https://stackoverflow.com/users/2258090/finbar-good"
+                    },
+                    "last_editor": {
+                        "reputation": 1461,
+                        "user_id": 2258090,
+                        "user_type": "registered",
+                        "profile_image": "https://i.sstatic.net/g8J8h.jpg?s=256",
+                        "display_name": "Finbar Good",
+                        "link": "https://stackoverflow.com/users/2258090/finbar-good"
+                    },
+                    "comment_count": 0,
+                    "down_vote_count": 0,
+                    "up_vote_count": 2,
+                    "is_accepted": true,
+                    "score": 2,
+                    "last_activity_date": 1741607660,
+                    "last_edit_date": 1741607660,
+                    "creation_date": 1741606418,
+                    "answer_id": 79497856,
+                    "question_id": 79497812,
+                    "share_link": "https://stackoverflow.com/a/79497856",
+                    "body_markdown": "```sql\r\nMATCH path = (r:`Neo4j::Record` {record_id: 1236})\r\n  &lt;-[n:`Neo4j::RecordAssociation` \r\n       WHERE n.label IN [&#39;Part Of&#39;, &#39;Related To&#39;, &#39;Recommends&#39;]]-{0,10} ()\r\nRETURN path, length(path) AS hops\r\nORDER BY hops\r\n```",
+                    "link": "https://stackoverflow.com/questions/79497812/neo4j-matching-multiple-association-labels/79497856#79497856",
+                    "title": "Neo4j matching multiple association labels"
+                }
+            ],
+            "owner": {
+                "reputation": 2871,
+                "user_id": 1195207,
+                "user_type": "registered",
+                "accept_rate": 92,
+                "profile_image": "https://www.gravatar.com/avatar/abfecec49e4871d38bfeedf7590c06ed?s=256&d=identicon&r=PG",
+                "display_name": "knirirr",
+                "link": "https://stackoverflow.com/users/1195207/knirirr"
+            },
+            "comment_count": 0,
+            "delete_vote_count": 0,
+            "close_vote_count": 0,
+            "is_answered": true,
+            "view_count": 30,
+            "favorite_count": 0,
+            "down_vote_count": 0,
+            "up_vote_count": 1,
+            "accepted_answer_id": 79497856,
+            "answer_count": 1,
+            "score": 1,
+            "last_activity_date": 1741607660,
+            "creation_date": 1741605539,
+            "question_id": 79497812,
+            "share_link": "https://stackoverflow.com/q/79497812",
+            "body_markdown": "In a Neo4j database, I&#39;d like to find everything pointing to a single record of interest, and filter these relations by their label. I can do this with a single label like this:\r\n\r\n```\r\nMATCH path = (r:`Neo4j::Record` {record_id: 1236})&lt;-[:`Neo4j::RecordAssociation` {label: &#39;Part Of&#39;}]-{0,10} ()\r\nRETURN path, length(path) AS hops\r\nORDER BY hops\r\n```\r\n\r\n...but, there are some additional labels on records a few hops away from 1236, e.g. &#39;Related To&#39;, &#39;Recommends&#39; etc. and I&#39;d like to include those as well.\r\n\r\nIs there any way to modify the `{label: &#39;Part Of&#39;}` part of the above query, or some other modification, which would allow matching &#39;Part Of&#39; OR &#39;Related To&#39; OR &#39;Recommends&#39; ?",
+            "link": "https://stackoverflow.com/questions/79497812/neo4j-matching-multiple-association-labels",
+            "title": "Neo4j matching multiple association labels"
+        },
+        {
+            "tags": [
+                "python",
+                "neo4j",
+                "graph-databases",
+                "neomodel"
+            ],
+            "owner": {
+                "reputation": 73,
+                "user_id": 14273766,
+                "user_type": "registered",
+                "profile_image": "https://www.gravatar.com/avatar/58247389251bc33bb267c9512dcfb943?s=256&d=identicon&r=PG&f=y&so-version=2",
+                "display_name": "Max Azatian",
+                "link": "https://stackoverflow.com/users/14273766/max-azatian"
+            },
+            "comment_count": 0,
+            "delete_vote_count": 0,
+            "close_vote_count": 0,
+            "is_answered": false,
+            "view_count": 23,
+            "favorite_count": 0,
+            "down_vote_count": 0,
+            "up_vote_count": 0,
+            "answer_count": 0,
+            "score": 0,
+            "last_activity_date": 1741475832,
+            "creation_date": 1741475832,
+            "question_id": 79495172,
+            "share_link": "https://stackoverflow.com/q/79495172",
+            "body_markdown": "Recently I switched from using Cypher queries to `neomodel` OGM. Although it simplified codebase, there&#39;s still an issue I can&#39;t solve. While using Cypher, I could simply write `CREATE &lt;object&gt; IF NOT EXISTS`, and execution plan would be understandable enough: if exists - do nothing, if doesn&#39;t - create. After switching to `neomodel`, I&#39;ve created following: \r\n\r\n- Service responsible for calling Neo4J using Neomodel: \r\n\r\n```python\r\nfrom models.neo4j_models import (\r\n    ...\r\n)\r\nfrom neomodel import config, db\r\n...\r\n\r\n\r\nclass GraphDBService:\r\n    def __init__(self, uri: str, username: str, password: str):\r\n        ...\r\n        self._initialize_db()  # IMPORTANT: called every time when service is created\r\n        ...\r\n\r\n    def _initialize_db(self) -&gt; None:\r\n        &quot;&quot;&quot;Initialize database with constraints and indexes&quot;&quot;&quot;\r\n\r\n        try:\r\n            db.install_all_labels()\r\n            logger.info(&quot;Neo4j constraints and indexes installed via neomodel&quot;)\r\n        except Exception as e:\r\n            logger.error(f&quot;Error initializing Neo4j schema: {str(e)}&quot;, exc_info=True)\r\n            raise GraphDBError(f&quot;Failed to initialize Neo4j schema: {str(e)}&quot;)\r\n```\r\n\r\n- Model to be created (`models.neo4j_models`):\r\n```python\r\nfrom neomodel import (\r\n    StringProperty, ...\r\n)\r\n\r\nclass Company(StructuredNode):\r\n    &quot;&quot;&quot;\r\n    Company node representing an organization where a person has worked\r\n    &quot;&quot;&quot;\r\n    name = StringProperty(unique_index=True, required=True)\r\n...\r\n```\r\n\r\nIt works as expected (according to their doc), but what I do not like is following: \r\n- Use service 1st time\r\n  - All models, relationships and so on are created (as expected) \r\n- Disconnect from service and reconnect again\r\n  - All models and so on are created again (as expected)\r\n\r\nDuring second round, my trace is heavily cluttered by logs of following type: \r\n```\r\ncv-storage-service-1     | Found models.neo4j_models.Company\r\ncv-storage-service-1     |  + Creating node unique constraint for name on label Company for class models.neo4j_models.Company\r\ncv-storage-service-1     | {code: Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists} {message: An equivalent constraint already exists, &#39;Constraint( id=17, name=&#39;constraint_unique_Company_name&#39;, type=&#39;NODE PROPERTY UNIQUENESS&#39;, schema=(:Company {name}), ownedIndex=16 )&#39;.}\r\n```\r\n\r\nAlthough I could find a solution checking whether calling `_initialize_db()` is justified or not, I would prefer simpler solution: just to pass a construct/flag/whatever that will tell neo sort of `IF &lt;this&gt; NOT EXISTS, create`. How could I do that? \r\n\r\nIf passing extra param is not an option, how could I change logs dropping straight from Neo4J? Core issue here is that all these &quot;Errors&quot; contain word `Error`, thus awfully increasing number of errors in log, and instead of having 100x+ `Sorry, can&#39;t create, it already exists` INFO-messages I get 100x+ &quot;errors&quot; that need not to be solved (from my point of view). \r\n\r\nWorkaround in [this][1] GitHub issue works as of now, but to be honest, I&#39;d prefer to get a solution rather than a workaround :)\r\n\r\n---\r\n\r\nTech: MacOS Sonoma 14.6.1, Python 3.11, neomodel 5.4.4\r\n\r\n\r\n  [1]: https://github.com/neo4j-contrib/neomodel/issues/539#issuecomment-906157466",
+            "link": "https://stackoverflow.com/questions/79495172/turning-on-if-not-exists-while-creating-schemas-and-relationships-in-neo4j-n",
+            "title": "Turning on `IF NOT EXISTS` while creating schemas and relationships in neo4j / neomodel"
+        },
+        {
+            "tags": [
+                "graph",
+                "neo4j",
+                "cypher",
+                "neo4j-bloom"
+            ],
+            "owner": {
+                "reputation": 13,
+                "user_id": 29882860,
+                "user_type": "registered",
+                "profile_image": "https://www.gravatar.com/avatar/0c6967d597dc5066a5ef299649f69471?s=256&d=identicon&r=PG&f=y&so-version=2",
+                "display_name": "goubint",
+                "link": "https://stackoverflow.com/users/29882860/goubint"
+            },
+            "comment_count": 0,
+            "delete_vote_count": 0,
+            "close_vote_count": 0,
+            "is_answered": false,
+            "view_count": 23,
+            "favorite_count": 0,
+            "down_vote_count": 0,
+            "up_vote_count": 1,
+            "answer_count": 0,
+            "score": 1,
+            "last_activity_date": 1741185503,
+            "creation_date": 1741185503,
+            "question_id": 79486810,
+            "share_link": "https://stackoverflow.com/q/79486810",
+            "body_markdown": "**Title:** Neo4j Bloom - Global Filter on Multiple Node Categories  \r\n\r\n**Body:**  \r\n\r\nI&#39;m using **Neo4j Bloom** as a visualization tool on **Neo4j v5.24.0** via **Neo4j Desktop 1.6.1**.  \r\n\r\nI have five node categories (which will increase over time). My goal is to add a filter to all of them to mark nodes that have already been reviewed by the analyst (who is not an IT specialist).  \r\n\r\nThe ideal solution would be to have a **global filter** on all displayed nodes that can be toggled easily, either with a **basic filter** or a **search phrase**.  \r\n\r\n### My Questions:  \r\n1. **Can I create a global filter** for all node categories, given that they all share the `.checked` property, or do I need one filter per category?  \r\n2. **What is the most efficient approach**: using a filter (if possible) or a search phrase?  \r\n\r\n### What I Tried:  \r\nI attempted to create a **global node type** containing only the `.checked` property and assigned it as a second type/category to all nodes. However, **Bloom&#39;s hierarchy system** only displays nodes under their highest category, making the filter work but preventing access to the full node information—rendering the solution useless.  \r\n\r\n### Additional Question:  \r\n- **Is it possible to customize the order of node properties in Bloom**, or are they always sorted alphabetically?  \r\n\r\nAny guidance would be much appreciated!",
+            "link": "https://stackoverflow.com/questions/79486810/neo4j-bloom-filtering-on-all-nodes-no-matter-their-category",
+            "title": "Neo4j Bloom filtering on all nodes no matter their category"
+        }
+    ],
+    "has_more": true,
+    "quota_max": 300,
+    "quota_remaining": 298
+}
