@@ -8,7 +8,7 @@ object Neo4JConnector {
     // Replace with the actual connection URI and credentials
     val url = "neo4j://3.92.182.134" //"neo4j://localhost:7687"
     val username = "neo4j"
-    val password = "troubleshooters-conditions-sort" // "tototata"
+    val password = "[CENSORED]" // "tototata"
     val dbname = "neo4j" //"recommendations"
 
     val spark = SparkSession.builder
@@ -73,14 +73,6 @@ RETURN count(p)
       .load()
 
     df7.show()
-    /*
-    *
-    * +--------+
-|COUNT(n)|
-+--------+
-|      29|
-+--------+
-    */
   }
 }
 
