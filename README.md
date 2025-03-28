@@ -22,10 +22,12 @@ The output of some scala code is within comments in the code itself.
 Note: After bringing more dependencies, I ended up breaking the über jar (also called fat jar). I'm too lazy to fix it. However, note that the über jar is not the best aproach, as you may import classes from the wrong jar, which can create really silly runtime issues. Bringing the dependecies externally would be the best approach.
 
 
-As for cypher queries and kubernetes deployment, they are scattered across folders called "monday" through "thursday"
+As for cypher queries and kubernetes deployment, they are scattered across folders called `monday` through `thursday`
 The result of some queries are next to the cypher queries themselves.
 
+The output of some activities is in the form of screenshots, inside the `activities_output` folder.
 
+And yes, this repository is a mess.
 
 
 ## Hackaton
